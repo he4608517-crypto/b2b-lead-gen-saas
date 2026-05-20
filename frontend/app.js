@@ -42,7 +42,7 @@ async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers };
   if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
   const res = await fetch(`${API}${path}`, { ...options, headers });
-  if (res.status === 401) {
+  if (res.status === 401 && state.token) {
     logout();
     throw new Error('Session expired');
   }
