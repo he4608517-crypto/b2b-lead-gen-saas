@@ -1,0 +1,12 @@
+The backend defensive refactoring is perfect. Now, let's complete the final Multi-Tenant feature we discussed: users should be able to configure their SMTP settings directly in the frontend web interface instead of using a global server `.env` file. Please refactor our codebase with these full-stack enhancements:
+
+1. **Database Migration (`models.py`)**: Add four new dynamic columns (`smtp_host`, `smtp_port`, `smtp_username`, `smtp_password`) to the `User` table model.
+2. **Backend API Endpoints (`app.py`)**:
+   - Add a protected `POST /api/users/smtp-config` endpoint to let logged-in users save/update their custom SMTP credentials into their database row.
+   - Refactor the current outreach mailing module so that it queries the current logged-in user's database configuration fields at runtime instead of relying on global environment variables.
+3. **Frontend Dashboard UI (`frontend/index.html` & `app.js`)**:
+   - Add a new tab named "Settings (系统设置)" in the left sidebar menu (just below Pipeline).
+   - Design a premium, clean setting form in this new panel containing inputs for: SMTP Host, SMTP Port, Sender Email, and SMTP Password/Token.
+   - Wire the form submission to the new backend endpoint, and ensure that whenever a task is run in a user's session, the pipeline dynamically pulls their specific active settings.
+
+Make sure all existing user authentication, dashboard analytics tables, and task progress bars continue to work perfectly without breaking change.

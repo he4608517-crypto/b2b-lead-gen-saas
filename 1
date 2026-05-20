@@ -1,0 +1,15 @@
+We have successfully built the core AI automation engine. Now, let's transform this into a real SaaS Web Platform. Please implement the following full-stack SaaS extensions in this directory:
+
+1. **FastAPI Web Server (`app.py`)**: 
+   Wrap our Python pipeline into RESTful Web APIs so that a web frontend can trigger it. Create endpoints like `/api/tasks/create`, `/api/leads/list`, and `/api/analytics/summary`.
+
+2. **Multi-Tenant SQLite Database (`models.py` & `database.py`)**:
+   Use SQLAlchemy to create database models. We need a `users` table, a `companies_pool` table (to save filtered leads), and an `outreach_logs` table. Ensure every row is tied to a `user_id` so different tenants can only see their own data.
+
+3. **Modern Web Frontend (`index.html` & `app.js` using Tailwind CSS)**:
+   Create a beautiful, fully functional single-page web app (SPA) frontend directly in a `frontend/` folder. Use native Javascript and Tailwind CSS CDN. 
+   - Replicate the layout from my original business logic: A left sidebar with "企业大脑 (Enterprise Brain)", "AI Lead Generation", and "Outreach Analytics".
+   - A central dashboard view displaying the exact funnel metrics we computed: "375 Target Leads", "32 Inquiries", and the "18.93% Response Rate" as mock/live state indicators.
+   - An interactive task creation form with source checkboxes (Google, LinkedIn, Apollo).
+
+Please generate all these files cleanly without placeholders. Ensure the frontend can fetch data from our FastAPI backend endpoints.

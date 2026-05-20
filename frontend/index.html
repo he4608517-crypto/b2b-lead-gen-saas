@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>B2B Lead Gen SaaS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; }
+    .toast { animation: slideIn 0.3s ease-out; }
+    @keyframes slideIn { from { transform: translateY(-1rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    .spinner { border-top-color: #6366f1; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- ============================================================ -->
+  <!-- Auth View (shown when not logged in)                         -->
+  <!-- ============================================================ -->
+  <div id="auth-view" class="min-h-screen flex items-center justify-center px-4">
+    <div class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">B2B Lead Gen</h1>
+        <p class="text-gray-500 mt-2">Automated lead discovery & outreach</p>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div class="flex border-b border-gray-200">
+          <button id="tab-login" class="flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600 bg-white">
+            Sign In
+          </button>
+          <button id="tab-register" class="flex-1 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-600">
+            Create Account
+          </button>
+        </div>
+
+        <!-- Login Form -->
+        <form id="login-form" class="p-6 space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input type="email" id="login-email" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input type="password" id="login-password" required minlength="8"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          </div>
+          <button type="submit"
+            class="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+            Sign In
+          </button>
+        </form>
+
+        <!-- Register Form -->
+        <form id="register-form" class="p-6 space-y-4 hidden">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Display Name</label>
+            <input type="text" id="reg-name" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input type="email" id="reg-email" required
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Company</label>
+            <input type="text" id="reg-company"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <input type="password" id="reg-password" required minlength="8"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+          </div>
+          <button type="submit"
+            class="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+            Create Account
+          </button>
+        </form>
+      </div>
+
+      <p id="auth-error" class="hidden mt-4 text-xs text-red-700 bg-red-50 rounded-lg p-3 text-left whitespace-pre-wrap break-all font-mono"></p>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- App View (shown when logged in)                              -->
+  <!-- ============================================================ -->
+  <div id="app-view" class="hidden">
+
+    <!-- Sidebar -->
+    <aside class="fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 flex flex-col z-30">
+      <div class="h-16 flex items-center px-6 border-b border-gray-200">
+        <h1 class="text-lg font-bold text-gray-900">B2B Lead Gen</h1>
+      </div>
+      <nav class="flex-1 p-4 space-y-1">
+        <button data-nav="dashboard"
+          class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-indigo-700 bg-indigo-50">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </button>
+        <button data-nav="leads"
+          class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          Leads
+        </button>
+        <button data-nav="outreach"
+          class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+          Outreach Log
+        </button>
+        <button data-nav="pipeline"
+          class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Pipeline
+        </button>
+        <button data-nav="settings"
+          class="nav-btn w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+          Settings <span class="text-xs text-gray-400 ml-auto">系统设置</span>
+        </button>
+      </nav>
+      <div class="p-4 border-t border-gray-200">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-sm" id="user-avatar"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate" id="user-name"></p>
+            <p class="text-xs text-gray-500 truncate" id="user-email"></p>
+          </div>
+          <button id="btn-logout" class="text-gray-400 hover:text-red-500 transition-colors" title="Sign out">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a2 2 0 01-2 2H6a2 2 0 01-2-2V7a2 2 0 012-2h5a2 2 0 012 2v1"/></svg>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main class="ml-64 p-8 min-h-screen">
+
+      <!-- Dashboard View -->
+      <div id="view-dashboard" class="view">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="stats-grid">
+          <!-- Populated by JS -->
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-4">Leads by Country</h3>
+            <div id="chart-countries" class="space-y-3"></div>
+          </div>
+          <div class="bg-white rounded-xl border border-gray-200 p-6">
+            <h3 class="text-sm font-semibold text-gray-900 mb-4">Leads by Source</h3>
+            <div id="chart-sources" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Leads View -->
+      <div id="view-leads" class="view hidden">
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-2xl font-bold text-gray-900">Leads</h2>
+          <button id="btn-add-lead"
+            class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+            + Add Lead
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap gap-3">
+          <input type="text" id="lead-search" placeholder="Search companies, contacts..."
+            class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          <select id="lead-filter-status"
+            class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+            <option value="replied">Replied</option>
+          </select>
+          <select id="lead-filter-target"
+            class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="">All leads</option>
+            <option value="true">Target</option>
+            <option value="false">Non-target</option>
+          </select>
+        </div>
+
+        <!-- Table -->
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="company_name">Company</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="country">Country</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="intent_score">Intent</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600">Contact</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="outreach_status">Status</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="leads-tbody" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+          <div id="leads-pagination" class="flex items-center justify-between px-4 py-3 border-t border-gray-200"></div>
+        </div>
+      </div>
+
+      <!-- Outreach Log View -->
+      <div id="view-outreach" class="view hidden">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Outreach Log</h2>
+        <div class="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600">Channel</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600">Recipient</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600">Subject</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600">Status</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600">Date</th>
+                </tr>
+              </thead>
+              <tbody id="outreach-tbody" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+          <div id="outreach-pagination" class="flex items-center justify-between px-4 py-3 border-t border-gray-200"></div>
+        </div>
+      </div>
+
+      <!-- Pipeline View -->
+      <div id="view-pipeline" class="view hidden">
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Run Pipeline</h2>
+        <div class="bg-white rounded-xl border border-gray-200 p-6 max-w-lg">
+          <form id="pipeline-form" class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Industry Keyword</label>
+              <input type="text" id="pipe-keyword" required
+                placeholder="e.g. air compressor manufacturer"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Target Region</label>
+              <input type="text" id="pipe-region" required
+                placeholder="e.g. Germany, US, China"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Channels</label>
+              <select id="pipe-channels"
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+                <option value="email">Email only</option>
+                <option value="email,whatsapp">Email + WhatsApp</option>
+              </select>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Max Leads per Source</label>
+                <input type="number" id="pipe-max-leads" value="15" min="1" max="50"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+              </div>
+              <div class="flex items-center gap-2 pt-6">
+                <input type="checkbox" id="pipe-dry-run" class="w-4 h-4 text-indigo-600 rounded">
+                <label for="pipe-dry-run" class="text-sm text-gray-700">Dry run (no actual sends)</label>
+              </div>
+            </div>
+            <button type="submit"
+              class="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              id="btn-run-pipeline">
+              Run Pipeline
+            </button>
+          </form>
+          <div id="pipeline-job-status" class="hidden mt-6 p-4 rounded-lg bg-gray-50 border border-gray-200"></div>
+        </div>
+      </div>
+
+      <!-- Settings View -->
+      <div id="view-settings" class="view hidden">
+        <h2 class="text-2xl font-bold text-gray-900 mb-2">Settings <span class="text-base font-normal text-gray-400">系统设置</span></h2>
+        <p class="text-sm text-gray-500 mb-6">Configure your personal SMTP credentials for email outreach. These are scoped to your account only.</p>
+
+        <div class="bg-white rounded-xl border border-gray-200 p-6 max-w-xl">
+          <form id="settings-form" class="space-y-5">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
+              <input type="text" id="settings-smtp-host" placeholder="smtp.gmail.com"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <p class="text-xs text-gray-400 mt-1">e.g. smtp.gmail.com, smtp.office365.com</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Port</label>
+              <input type="number" id="settings-smtp-port" placeholder="587"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <p class="text-xs text-gray-400 mt-1">Typically 587 (TLS) or 465 (SSL)</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Sender Email / Username</label>
+              <input type="email" id="settings-smtp-username" placeholder="you@gmail.com"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <p class="text-xs text-gray-400 mt-1">The email address used to authenticate and send</p>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">SMTP Password / App Token</label>
+              <input type="password" id="settings-smtp-password" placeholder="App password or token"
+                class="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+              <p class="text-xs text-gray-400 mt-1">For Gmail, use an <a href="https://support.google.com/accounts/answer/185833" target="_blank" class="text-indigo-600 hover:underline">App Password</a></p>
+            </div>
+
+            <div class="flex items-center gap-3 pt-2">
+              <button type="submit"
+                class="px-6 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                id="btn-save-settings">
+                Save SMTP Settings
+              </button>
+              <button type="button" id="btn-test-smtp"
+                class="px-4 py-2.5 text-sm font-semibold text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100 transition-colors">
+                Test Connection
+              </button>
+            </div>
+          </form>
+
+          <div id="settings-banner" class="hidden mt-4 p-3 rounded-lg text-sm"></div>
+
+          <!-- Connection status indicator -->
+          <div class="mt-6 pt-4 border-t border-gray-100">
+            <div class="flex items-center gap-2">
+              <span class="text-sm text-gray-600">Status:</span>
+              <span id="settings-status-badge" class="inline-flex px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600">Not configured</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Lead Detail / Edit Modal                                      -->
+  <!-- ============================================================ -->
+  <div id="lead-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/40">
+    <div class="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-4">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg font-bold text-gray-900" id="modal-title">Lead Details</h3>
+        <button id="modal-close" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      <form id="lead-edit-form" class="p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Company Name</label>
+            <input type="text" id="edit-company-name"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Website</label>
+            <input type="text" id="edit-website"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Country</label>
+            <input type="text" id="edit-country"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Source</label>
+            <input type="text" id="edit-source"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+          <textarea id="edit-description" rows="3"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Contact Name</label>
+            <input type="text" id="edit-contact-name"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Contact Email</label>
+            <input type="text" id="edit-contact-email"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Contact Title</label>
+            <input type="text" id="edit-contact-title"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Contact Phone</label>
+            <input type="text" id="edit-contact-phone"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Is Target</label>
+            <select id="edit-is-target"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              <option value="false">No</option>
+              <option value="true">Yes</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Intent Score</label>
+            <input type="number" id="edit-intent-score" min="0" max="100"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-gray-600 mb-1">Outreach Status</label>
+            <select id="edit-outreach-status"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+              <option value="pending">Pending</option>
+              <option value="sent">Sent</option>
+              <option value="failed">Failed</option>
+              <option value="replied">Replied</option>
+            </select>
+          </div>
+        </div>
+        <input type="hidden" id="edit-lead-id">
+        <div class="flex justify-between pt-2">
+          <button type="button" id="btn-delete-lead"
+            class="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">
+            Delete Lead
+          </button>
+          <div class="flex gap-3">
+            <button type="button" id="modal-cancel"
+              class="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">
+              Cancel
+            </button>
+            <button type="submit"
+              class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 transition-colors">
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="fixed top-4 right-4 z-50 hidden"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

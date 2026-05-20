@@ -1,0 +1,34 @@
+# Target
+Act as a Senior Backend and AI Agent Engineer. Write production-ready Python code to implement the core workflow for this automated B2B lead generation system. The system must cover the full pipeline from multi-source lead scraping to LLM semantic filtering and multi-channel outreach (Email/WhatsApp). No frontend code is needed.
+
+# Architecture & Module Requirements
+
+## 1. Lead Scraper Service (`scraper.py`)
+Implement a unified lead aggregator that handles inputs such as industry keywords (e.g., "air compressor manufacturer") and target regions.
+- Data Sources: Provide Mock API structures/skeletons for Google Search API, LinkedIn API, and Apollo API.
+- Output: Return a standardized list of companies containing `company_name`, `website_url`, `country`, and `raw_description`.
+
+## 2. LLM Semantic Filter (`filters.py`)
+Use a Large Language Model (Gemini/Claude API) to perform deep semantic filtering and profile matching based on raw descriptions.
+- Filtering Logic: Apply negative filtering to eliminate non-target buyers based on user-defined criteria (e.g., region exclusions, missing OEM/ODM customization capabilities, or non-decision-maker profiles).
+- Structured Output: Utilize Pydantic (`BaseModel`) to enforce strict output formatting:
+  - `is_target`: boolean
+  - `intent_score`: int (0-100)
+  - `decision_maker_title`: string
+  - `reason`: string (structured reason for approval/rejection)
+
+## 3. Contact Finder & Verifier (`contacts.py`)
+For high-value target companies validated by the LLM, fetch and verify decision-maker contact details.
+- Discovery: Simulate calls to third-party services (e.g., Hunter.io or Prospeo) to find emails matching titles like "Purchasing", "Sourcing", "Owner", or "VP".
+- Verification: Implement basic SMTP email validation logic to filter out dead or catch-all mailboxes.
+
+## 4. Multi-Channel AI Outreach (`outreach.py`)
+Build automated outreach pipelines for tailored engagement.
+- Personalization: Pass the company profile and intent reasons into the LLM to generate highly targeted, non-templated 1-to-1 cold emails.
+- Delivery Engine: Implement robust handlers for `send_email_via_smtp` and `send_whatsapp_via_api`, including basic rate limiting, logging, and retry mechanisms.
+
+# Output Deliverables
+1. Provide a clean project directory tree structure.
+2. Generate fully functional Python files (`scraper.py`, `filters.py`, `contacts.py`, `outreach.py`) with explicit comments and type hints.
+3. Provide a `main.py` script as the unified entry point to demonstrate the full end-to-end pipeline (Input parameters -> Scrape -> LLM Filter -> Contact Discovery -> Outreach).
+4. Include a `requirements.txt` listing essential dependencies (e.g., `pydantic`, `google-genai`, `requests`, `aiohttp`).
