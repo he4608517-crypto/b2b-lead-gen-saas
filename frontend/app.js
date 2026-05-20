@@ -2,10 +2,18 @@
  * B2B Lead Gen SaaS — Frontend SPA
  *
  * Vanilla JS, no framework. Auth via JWT in localStorage.
- * API base URL defaults to http://localhost:8000.
+ * API base: backend uvicorn listens on 0.0.0.0:8000 (see app.py __main__).
+ * Use 127.0.0.1 for requests so Windows localhost→IPv6 mismatches do not break fetch.
  */
 
-const API = 'http://localhost:8000';
+const API = (() => {
+  const { protocol, hostname } = window.location;
+  const backendPort = 8000;
+  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') {
+    return `http://127.0.0.1:${backendPort}`;
+  }
+  return `${protocol}//${hostname}:${backendPort}`;
+})();
 
 // ---------------------------------------------------------------------------
 // State

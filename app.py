@@ -185,9 +185,13 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="B2B Lead Gen SaaS", version="1.0.0", lifespan=lifespan)
 
+# Local dev: any port on localhost, 127.0.0.1, or IPv6 [::1] (python -m http.server binds ::)
+_LOCAL_DEV_ORIGIN = r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?"
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[],
+    allow_origin_regex=_LOCAL_DEV_ORIGIN,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
