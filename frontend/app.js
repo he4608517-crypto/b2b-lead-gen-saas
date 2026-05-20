@@ -789,6 +789,24 @@ document.getElementById('pipeline-form').addEventListener('submit', runPipeline)
 document.getElementById('settings-form').addEventListener('submit', saveSettings);
 document.getElementById('btn-test-smtp').addEventListener('click', testSMTPConnection);
 
+// Password visibility toggle
+document.querySelectorAll('.pw-toggle').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const input = document.getElementById(btn.dataset.target);
+    const eye = btn.querySelector('.pw-eye');
+    const eyeOff = btn.querySelector('.pw-eye-off');
+    if (input.type === 'password') {
+      input.type = 'text';
+      eye.classList.add('hidden');
+      eyeOff.classList.remove('hidden');
+    } else {
+      input.type = 'password';
+      eye.classList.remove('hidden');
+      eyeOff.classList.add('hidden');
+    }
+  });
+});
+
 // Keyboard shortcut: Escape to close modal
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeLeadModal();
