@@ -48,7 +48,30 @@ def get_db() -> Session:
         db.close()
 
 
+def _migrate_users_smtp_columns():
+    """Add per-tenant SMTP columns if the users table predates them."""
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        existing = {r[1] for r in conn.execute("PRAGMA table_info(users)")}
+        needed = {
+            "smtp_host": "VARCHAR(255) DEFAULT ''",
+            "smtp_port": "INTEGER DEFAULT 0",
+            "smtp_username": "VARCHAR(255) DEFAULT ''",
+            "smtp_password": "VARCHAR(255) DEFAULT ''",
+        }
+        for col, typedef in needed.items():
+            if col not in existing:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col} {typedef}")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass  # table doesn't exist yet — create_all will handle it
+
+
 def init_db():
-    """Create all tables if they do not exist."""
+    """Create all tables if they do not exist, then run migrations."""
     from models import Base
     Base.metadata.create_all(bind=engine)
+    _migrate_users_smtp_columns()
