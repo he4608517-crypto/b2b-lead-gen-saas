@@ -87,6 +87,9 @@ function showAuthView() {
   document.getElementById('auth-view').classList.remove('hidden');
   document.getElementById('login-form').classList.remove('hidden');
   document.getElementById('register-form').classList.add('hidden');
+  document.getElementById('login-form').reset();
+  document.getElementById('register-form').reset();
+  document.getElementById('auth-error').classList.add('hidden');
   document.getElementById('tab-login').className = 'flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600 bg-white';
   document.getElementById('tab-register').className = 'flex-1 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-600';
 }
@@ -129,42 +132,76 @@ function navigateTo(view) {
 async function loadDashboard() {
   try {
     const stats = await api('/api/dashboard/stats');
+    const view = document.getElementById('view-dashboard');
 
-    const cards = [
-      { label: 'Total Leads', value: stats.total_leads, color: 'indigo' },
-      { label: 'Target Leads', value: stats.target_leads, color: 'green' },
-      { label: 'Contacted', value: stats.contacted, color: 'blue' },
-      { label: 'Replied', value: stats.replied, color: 'amber' },
-      { label: 'Conversion Rate', value: `${stats.conversion_rate}%`, color: 'purple' },
-      { label: 'Recent (30d)', value: stats.recent_added, color: 'teal' },
-    ];
+    if (stats.total_leads === 0) {
+      view.innerHTML = `
+        <h2 class="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
+        <div class="bg-white rounded-2xl border border-gray-200 flex flex-col items-center justify-center py-20 px-6 text-center">
+          <div class="w-20 h-20 rounded-2xl bg-indigo-50 flex items-center justify-center mb-6">
+            <svg class="w-10 h-10 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-gray-900 mb-2">No leads yet</h3>
+          <p class="text-sm text-gray-500 max-w-md mb-8">Run your first discovery pipeline or add a lead manually to start building your B2B outreach campaign.</p>
+          <div class="flex gap-3">
+            <button onclick="document.querySelector('[data-nav=pipeline]').click()" class="px-5 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                Run Pipeline
+              </span>
+            </button>
+            <button onclick="document.querySelector('[data-nav=leads]').click()" class="px-5 py-2.5 bg-white text-gray-700 text-sm font-semibold rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors">
+              <span class="flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                Go to Leads
+              </span>
+            </button>
+          </div>
+        </div>
+      `;
+      return;
+    }
 
-    document.getElementById('stats-grid').innerHTML = cards.map(c => `
-      <div class="bg-white rounded-xl border border-gray-200 p-5">
-        <p class="text-sm text-gray-500">${c.label}</p>
-        <p class="text-3xl font-bold text-${c.color}-600 mt-1">${c.value}</p>
+    view.innerHTML = `
+      <h2 class="text-2xl font-bold text-gray-900 mb-6">Dashboard</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8" id="stats-grid">
+        ${[
+          { label: 'Total Leads', value: stats.total_leads, color: 'indigo' },
+          { label: 'Target Leads', value: stats.target_leads, color: 'green' },
+          { label: 'Contacted', value: stats.contacted, color: 'blue' },
+          { label: 'Replied', value: stats.replied, color: 'amber' },
+          { label: 'Conversion Rate', value: `${stats.conversion_rate}%`, color: 'purple' },
+          { label: 'Recent (30d)', value: stats.recent_added, color: 'teal' },
+        ].map(c => `
+          <div class="bg-white rounded-xl border border-gray-200 p-5">
+            <p class="text-sm text-gray-500">${c.label}</p>
+            <p class="text-3xl font-bold text-${c.color}-600 mt-1">${c.value}</p>
+          </div>
+        `).join('')}
       </div>
-    `).join('');
-
-    // Countries chart
-    const maxCountry = Math.max(1, ...stats.by_country.map(c => c.count));
-    document.getElementById('chart-countries').innerHTML = stats.by_country.map(c => `
-      <div class="flex items-center gap-3">
-        <span class="text-sm text-gray-700 w-16 truncate">${c.country}</span>
-        <div class="flex-1 bg-gray-100 rounded-full h-2.5"><div class="bg-indigo-500 rounded-full h-2.5" style="width:${(c.count / maxCountry * 100).toFixed(0)}%"></div></div>
-        <span class="text-sm text-gray-500 w-8 text-right">${c.count}</span>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 class="text-sm font-semibold text-gray-900 mb-4">Leads by Country</h3>
+          <div class="space-y-3">
+            ${stats.by_country.length ? stats.by_country.map(c => {
+              const pct = (c.count / Math.max(1, ...stats.by_country.map(x => x.count)) * 100).toFixed(0);
+              return `<div class="flex items-center gap-3"><span class="text-sm text-gray-700 w-16 truncate">${esc(c.country)}</span><div class="flex-1 bg-gray-100 rounded-full h-2.5"><div class="bg-indigo-500 rounded-full h-2.5" style="width:${pct}%"></div></div><span class="text-sm text-gray-500 w-8 text-right">${c.count}</span></div>`;
+            }).join('') : '<p class="text-sm text-gray-400">No data yet</p>'}
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-6">
+          <h3 class="text-sm font-semibold text-gray-900 mb-4">Leads by Source</h3>
+          <div class="space-y-3">
+            ${stats.by_source.length ? stats.by_source.map(c => {
+              const pct = (c.count / Math.max(1, ...stats.by_source.map(x => x.count)) * 100).toFixed(0);
+              return `<div class="flex items-center gap-3"><span class="text-sm text-gray-700 w-20 truncate">${esc(c.source)}</span><div class="flex-1 bg-gray-100 rounded-full h-2.5"><div class="bg-green-500 rounded-full h-2.5" style="width:${pct}%"></div></div><span class="text-sm text-gray-500 w-8 text-right">${c.count}</span></div>`;
+            }).join('') : '<p class="text-sm text-gray-400">No data yet</p>'}
+          </div>
+        </div>
       </div>
-    `).join('') || '<p class="text-sm text-gray-400">No data yet</p>';
-
-    // Sources chart
-    const maxSource = Math.max(1, ...stats.by_source.map(c => c.count));
-    document.getElementById('chart-sources').innerHTML = stats.by_source.map(c => `
-      <div class="flex items-center gap-3">
-        <span class="text-sm text-gray-700 w-20 truncate">${c.source}</span>
-        <div class="flex-1 bg-gray-100 rounded-full h-2.5"><div class="bg-green-500 rounded-full h-2.5" style="width:${(c.count / maxSource * 100).toFixed(0)}%"></div></div>
-        <span class="text-sm text-gray-500 w-8 text-right">${c.count}</span>
-      </div>
-    `).join('') || '<p class="text-sm text-gray-400">No data yet</p>';
+    `;
 
   } catch (err) {
     toast(err.message, 'error');
@@ -660,10 +697,11 @@ function formatDate(iso) {
 // Event bindings
 // ---------------------------------------------------------------------------
 
-// Auth tabs
+// Auth tabs — reset forms on switch to prevent stale data leaking between panels
 document.getElementById('tab-login').addEventListener('click', () => {
   document.getElementById('login-form').classList.remove('hidden');
   document.getElementById('register-form').classList.add('hidden');
+  document.getElementById('register-form').reset();
   document.getElementById('tab-login').className = 'flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600 bg-white';
   document.getElementById('tab-register').className = 'flex-1 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-600';
   document.getElementById('auth-error').classList.add('hidden');
@@ -672,6 +710,7 @@ document.getElementById('tab-login').addEventListener('click', () => {
 document.getElementById('tab-register').addEventListener('click', () => {
   document.getElementById('register-form').classList.remove('hidden');
   document.getElementById('login-form').classList.add('hidden');
+  document.getElementById('login-form').reset();
   document.getElementById('tab-register').className = 'flex-1 py-3 text-sm font-semibold text-indigo-600 border-b-2 border-indigo-600 bg-white';
   document.getElementById('tab-login').className = 'flex-1 py-3 text-sm font-semibold text-gray-400 border-b-2 border-transparent hover:text-gray-600';
   document.getElementById('auth-error').classList.add('hidden');
