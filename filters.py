@@ -111,8 +111,10 @@ class LLMClient:
 
     def _has_api_key(self) -> bool:
         if self.provider == "gemini":
-            return bool(os.getenv("GEMINI_API_KEY", ""))
-        return bool(os.getenv("ANTHROPIC_API_KEY", ""))
+            key = os.getenv("GEMINI_API_KEY", "")
+        else:
+            key = os.getenv("ANTHROPIC_API_KEY", "")
+        return bool(key) and "your_" not in key.lower() and "placeholder" not in key.lower()
 
     # ---- Gemini ----------------------------------------------------------
 

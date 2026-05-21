@@ -607,8 +607,9 @@ def run_pipeline(body: PipelineRequest, user: User = Depends(current_user)):
             # Stage 3: Contact Discovery
             from contacts import ContactFinder
             finder = ContactFinder()
+            total_passed = len(passed)
             enriched = []
-            for lead in passed:
+            for i, lead in enumerate(passed):
                 domain = lead.get("website_url", "").replace("www.", "").strip()
                 if not domain:
                     continue
@@ -623,6 +624,8 @@ def run_pipeline(body: PipelineRequest, user: User = Depends(current_user)):
                     e["contact_email"] = best.email
                     e["contact_title"] = best.title
                     enriched.append(e)
+                # Stepped progress from 50 → 65 during contact discovery
+                _pipeline_status[job_id]["progress"] = 50 + int((i + 1) / max(total_passed, 1) * 15)
 
             _pipeline_status[job_id]["progress"] = 70
 

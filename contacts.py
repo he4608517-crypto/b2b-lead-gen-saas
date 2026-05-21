@@ -254,7 +254,7 @@ class EmailVerifier:
             return []
 
     @staticmethod
-    def verify_smtp(email: str, timeout: int = 10) -> tuple[bool, str]:
+    def verify_smtp(email: str, timeout: int = 3) -> tuple[bool, str]:
         """
         Perform a lightweight SMTP RCPT TO verification.
 
@@ -305,7 +305,7 @@ class EmailVerifier:
             contact.email_verified = is_valid
             contact.email_status = status
             logger.info("Verified %s → %s", contact.email, status)
-            time.sleep(0.3)  # rate-limit to avoid being flagged as spam
+            time.sleep(0.05)  # rate-limit to avoid being flagged as spam
         return contacts
 
 
