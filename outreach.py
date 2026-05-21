@@ -286,49 +286,23 @@ Keep it under 100 words. WhatsApp messages are informal — friendly opening, on
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            # DeepSeek sometimes returns JSON with literal newlines in string values.
-            # Find the outermost { ... } and extract subject/body with regex as fallback.
+            # DeepSeek may return JSON with literal newlines in string values.
+            # Extract subject and body via regex directly from the malformed JSON.
             try:
-                # Match the entire JSON object, handling nested braces carefully
-                depth = 0
-                start = cleaned.find("{")
-                if start == -1:
-                    return {"subject": "", "body": cleaned}
-                for i, ch in enumerate(cleaned[start:], start):
-                    if ch == "{":
-                        depth += 1
-                    elif ch == "}":
-                        depth -= 1
-                        if depth == 0:
-                            obj_str = cleaned[start:i + 1]
-                            # Escape literal newlines inside the JSON string
-                            fixed = re.sub(
-                                r'(?<!\\)"(?:(?<!\\)"(?:[^"\\]|\\.)*"(?<!\\)")*[^"]*',
-                                lambda m: m.group(0),
-                                obj_str,
-                            )
-                            # Simpler: use regex to extract subject and body directly
-                            m_subj = re.search(r'"subject"\s*:\s*"((?:[^"\\]|\\.)*)"', obj_str)
-                            m_body = re.search(r'"body"\s*:\s*"((?:[^"\\]|\\.)*)"', obj_str, re.DOTALL)
-                            subj = m_subj.group(1) if m_subj else ""
-                            body = m_body.group(1) if m_body else cleaned
-                            # Unescape JSON escapes
-                            for esc_seq, real in [('\\n', '\n'), ('\\t', '\t'), ('\\"', '"'), ('\\\\', '\\')]:
-                                subj = subj.replace(esc_seq, real)
-                                body = body.replace(esc_seq, real)
-                            return {"subject": subj, "body": body}
-                    elif ch == '"':
-                        # Skip string contents
-                        j = i + 1
-                        while j < len(cleaned):
-                            if cleaned[j] == '\\':
-                                j += 2
-                            elif cleaned[j] == '"':
-                                break
-                            else:
-                                j += 1
-                        i = j
-                return {"subject": "", "body": cleaned}
+                m_subj = re.search(
+                    r'"subject"\s*:\s*"((?:[^"\\]|\\[\\"/bfnrt]|\\u[0-9a-fA-F]{4})*)"',
+                    cleaned, re.DOTALL,
+                )
+                m_body = re.search(
+                    r'"body"\s*:\s*"((?:[^"\\]|\\[\\"/bfnrt]|\\u[0-9a-fA-F]{4})*)"\s*\}',
+                    cleaned, re.DOTALL,
+                )
+                subj = m_subj.group(1) if m_subj else ""
+                body = m_body.group(1) if m_body else cleaned
+                # Unescape JSON escape sequences
+                body = body.replace('\\n', '\n').replace('\\t', '\t').replace('\\"', '"').replace('\\\\', '\\')
+                subj = subj.replace('\\n', ' ').replace('\\t', ' ').replace('\\"', '"').replace('\\\\', '\\')
+                return {"subject": subj, "body": body}
             except Exception:
                 return {"subject": "", "body": cleaned}
 
