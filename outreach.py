@@ -139,6 +139,50 @@ Return ONLY a valid JSON object:
 """
 
 
+# Country → native language mapping for multi-language email generation
+COUNTRY_LANGUAGE = {
+    "DE": "German", "AT": "German", "CH": "German",
+    "FR": "French", "BE": "French",
+    "ES": "Spanish", "MX": "Spanish", "AR": "Spanish", "CL": "Spanish", "CO": "Spanish",
+    "IT": "Italian",
+    "NL": "Dutch",
+    "PT": "Portuguese", "BR": "Portuguese",
+    "JP": "Japanese",
+    "KR": "Korean",
+    "CN": "Chinese (Simplified)", "TW": "Chinese (Traditional)", "HK": "Chinese (Traditional)",
+    "RU": "Russian",
+    "SA": "Arabic", "AE": "Arabic", "QA": "Arabic", "KW": "Arabic", "OM": "Arabic",
+    "TR": "Turkish",
+    "PL": "Polish",
+    "SE": "Swedish", "NO": "Norwegian", "DK": "Danish", "FI": "Finnish",
+    "TH": "Thai",
+    "VN": "Vietnamese",
+    "ID": "Indonesian",
+    "IN": "English",
+    "UK": "English", "US": "English", "CA": "English", "AU": "English", "NZ": "English",
+    "SG": "English", "MY": "English", "PH": "English",
+}
+
+MULTILINGUAL_SYSTEM_PROMPT = """\
+You are a B2B cold outreach copywriter for a Chinese supplier/manufacturer of commercial LED lighting and industrial products. You write 1-to-1, highly personalised emails that sound human.
+
+## Rules
+1. Write the ENTIRE email in {language}. Subject, body, greeting, and CTA must all be in {language}.
+2. Reference a SPECIFIC detail from the company description — prove you did your homework.
+3. Mention that we are a Chinese manufacturer/supplier capable of OEM/ODM, competitive pricing, and reliable shipping.
+4. Tone: professional but warm, concise (100-150 words), value-first.
+5. Include a clear, low-friction CTA (e.g., a 15-min discovery call or sample request).
+6. Keep proper business letter formatting with greeting and signature.
+
+## Output Format
+Return ONLY a valid JSON object:
+{{
+  "subject": "string (in {language})",
+  "body": "string (in {language}, full email body)"
+}}
+"""
+
+
 class OutreachPersonaliser:
     """Generates tailored messages via LLM."""
 
@@ -154,6 +198,35 @@ class OutreachPersonaliser:
         raw = self.llm.generate(PERSONALISATION_SYSTEM_PROMPT, user_prompt)
         data = self._parse_json(raw)
         return data.get("subject", ""), data.get("body", raw)
+
+    def generate_multilingual_email(
+        self, target: OutreachTarget, sender_name: str, sender_company: str, country: str = ""
+    ) -> tuple[str, str, str]:
+        """
+        Generate a cold email in the target country's native language.
+
+        Returns (subject, body, language_used).
+        """
+        lang = self._resolve_language(country)
+        system_prompt = MULTILINGUAL_SYSTEM_PROMPT.format(language=lang)
+        user_prompt = self._build_email_prompt(target, sender_name, sender_company)
+        raw = self.llm.generate(system_prompt, user_prompt)
+        data = self._parse_json(raw)
+        return data.get("subject", ""), data.get("body", raw), lang
+
+    @staticmethod
+    def _resolve_language(country: str) -> str:
+        """Map a country code or name to its primary business language."""
+        if not country:
+            return "English"
+        c = country.strip().upper()
+        if c in COUNTRY_LANGUAGE:
+            return COUNTRY_LANGUAGE[c]
+        # Try matching by country name substring
+        for key, lang in COUNTRY_LANGUAGE.items():
+            if key.lower() in c.lower():
+                return lang
+        return "English"
 
     def generate_whatsapp(self, target: OutreachTarget, sender_name: str, sender_company: str) -> str:
         """
