@@ -48,6 +48,134 @@ class CompanyLead:
 
 
 # ---------------------------------------------------------------------------
+# Keyword-aware mock company generator (shared by all mock APIs)
+# ---------------------------------------------------------------------------
+
+# Industry signals injected into mock descriptions based on keyword context
+_TARGET_SIGNALS = [
+    "with in-house R&D and custom engineering capabilities",
+    "ISO 9001 certified manufacturer offering OEM/ODM partnerships",
+    "vertically integrated production with global export network",
+    "specialised in bespoke client solutions and private-label manufacturing",
+    "patented technology with dedicated engineering support team",
+]
+_NON_TARGET_SIGNALS = [
+    "Authorised reseller and distributor; does NOT manufacture",
+    "Regional repair shop and maintenance service provider — purely service",
+    "General trading company that sometimes ships used equipment — no OEM",
+    "Local end-user facility; does NOT purchase or source at OEM scale",
+]
+
+# Region → primary country mapping
+_REGION_COUNTRY = {
+    "germany": "DE", "deutschland": "DE",
+    "us": "US", "usa": "US", "united states": "US", "america": "US",
+    "china": "CN", "uk": "UK", "united kingdom": "UK", "england": "UK",
+    "japan": "JP", "india": "IN", "italy": "IT", "france": "FR",
+    "brazil": "BR", "korea": "KR", "taiwan": "TW", "canada": "CA",
+    "australia": "AU", "spain": "ES", "netherlands": "NL",
+}
+
+
+def _resolve_country(region: str) -> str:
+    r = region.strip().lower()
+    for key, cc in _REGION_COUNTRY.items():
+        if key in r:
+            return cc
+    return r[:2].upper()
+
+
+# Words that, if they appear in the keyword, shouldn't poison target descriptions
+_NEGATIVE_SIGNAL_WORDS = {
+    "distributor", "reseller", "dealer", "repair", "broker", "trader",
+    "wholesaler", "retailer", "importer", "exporter",
+}
+
+
+def _clean_keyword(keyword: str) -> str:
+    """Extract the core industry/product words, dropping negative-signal fluff."""
+    words = [
+        w for w in keyword.lower().replace(",", " ").split()
+        if w not in ("the", "a", "an", "and", "or", "of", "in", "for", "with")
+    ]
+    if not words:
+        return "industrial"
+    # Use the first non-negative word as the primary, or fall back to the first word
+    product_words = [w for w in words if w not in _NEGATIVE_SIGNAL_WORDS]
+    return " ".join(product_words) if product_words else words[0]
+
+
+def _generate_mock_companies(
+    keyword: str, region: str, num: int, source: str
+) -> list[CompanyLead]:
+    """Build a diverse mock lead list that visibly responds to the keyword."""
+    clean_kw = _clean_keyword(keyword)
+    raw_kw = keyword.strip()
+
+    words = [
+        w for w in clean_kw.split()
+        if w not in ("the", "a", "an", "and", "or", "of", "in", "for", "with")
+    ]
+    if not words:
+        words = ["industrial"]
+    main_word = random.choice(words).title()
+
+    prefixes = ["Global", "Advanced", "Precision", "Elite", "Prime", "Apex", "Vertex", "Atlas"]
+    geo_prefixes = ["Shanghai", "Shenzhen", "Mumbai", "Berlin", "London", "Chicago", "Tokyo", "Seoul"]
+    suffixes = ["Industries", "Solutions", "Systems", "Technologies", "Group", "Enterprises", "Corp"]
+
+    country = _resolve_country(region)
+    leads: list[CompanyLead] = []
+
+    for i in range(num):
+        is_target = random.random() < 0.6
+
+        if random.random() < 0.25:
+            name = f"{random.choice(geo_prefixes)} {main_word} {random.choice(suffixes)}"
+        elif random.random() < 0.5:
+            name = f"{random.choice(prefixes)} {main_word} {random.choice(suffixes)}"
+        else:
+            name = f"{main_word} {random.choice(suffixes)}"
+
+        slug = name.lower().replace(" ", "").replace(",", "")[:20]
+        url = f"www.{slug}{random.choice(['.com', '.co', '.io'])}"
+
+        if is_target:
+            # Use CLEAN keyword (no "distributor" etc.) in target descriptions
+            desc = (
+                f"Established {clean_kw} manufacturer and OEM supplier. "
+                f"{random.choice(_TARGET_SIGNALS)}. "
+                f"Serves major industrial accounts across {region.strip()}."
+            )
+        else:
+            # Use the RAW keyword (may include "distributor") in non-target descriptions
+            desc = (
+                f"{random.choice(_NON_TARGET_SIGNALS)} of {raw_kw} equipment. "
+                f"Operates locally within {region.strip()}."
+            )
+
+        leads.append(CompanyLead(
+            company_name=name,
+            website_url=url,
+            country=country,
+            raw_description=desc,
+            source=source,
+            source_rank=i + 1,
+        ))
+
+    # Deduplicate by company name (random generation can produce collisions)
+    seen: set[str] = set()
+    unique: list[CompanyLead] = []
+    for ld in leads:
+        if ld.company_name.lower() not in seen:
+            seen.add(ld.company_name.lower())
+            unique.append(ld)
+    for idx, ld in enumerate(unique):
+        ld.source_rank = idx + 1
+    return unique
+
+
+# ---------------------------------------------------------------------------
 # Mock API structures
 # ---------------------------------------------------------------------------
 
@@ -96,28 +224,8 @@ class GoogleSearchAPI:
     # ------------------------------------------------------------------
     @staticmethod
     def _mock_results(keyword: str, region: str, num: int) -> list[CompanyLead]:
-        time.sleep(random.uniform(0.05, 0.2))  # simulate network latency
-        companies = [
-            ("AirPower Systems Ltd", "www.airpowersystems.com", "DE", "ISO 9001 certified industrial air compressor manufacturer. Specialises in rotary screw and piston compressors up to 500 kW. Offers OEM and ODM customization for European industrial clients."),
-            ("CompTech Industries", "www.comptech-industries.co.uk", "UK", "Leading manufacturer of oil-free scroll air compressors for medical, pharmaceutical, and food-grade applications. Has in-house R&D and custom solution engineering team."),
-            ("GlobalAir Manufacturing Co.", "www.globalair-mfg.com", "US", "Full-line compressor, blower, and vacuum pump manufacturer. Serves automotive, construction, and energy sectors. ISO 14001 compliant."),
-            ("Pneumax S.p.A.", "www.pneumax.it", "IT", "Italian pneumatic components and compressor manufacturer. Supplies FCA, aerospace subcontractors, and general automation integrators. Private label (ODM) available."),
-            ("Shanghai Rotorcomp Machinery", "www.rotorcomp.cn", "CN", "Major Chinese screw air compressor exporter. Sells bare compressor pumps and packaged units. Very price-competitive; minimal after-sales OEM support."),
-            ("Atlas CopCo Distributor Inc.", "www.atlascopco-distributor.com", "IN", "Authorised reseller and service partner for Atlas Copco compressors across South Asia. Does NOT manufacture; purely distribution and maintenance."),
-            ("Precision Air Tools LLC", "www.precisionair.tools", "US", "Small machine shop that uses compressors to power pneumatic tools. NOT a manufacturer or buyer of compressors in bulk."),
-            ("EcoAir Engineering GmbH", "www.ecoair-engineering.de", "DE", "Specialist in energy-efficient compressed air system design and heat-recovery solutions. Engineers custom compressor stations for factories. OEM partner for several European brands."),
-        ]
-        leads: list[CompanyLead] = []
-        for idx, (name, url, country, desc) in enumerate(companies[:num]):
-            leads.append(CompanyLead(
-                company_name=name,
-                website_url=url,
-                country=country,
-                raw_description=desc,
-                source="google_search",
-                source_rank=idx + 1,
-            ))
-        return leads
+        time.sleep(random.uniform(0.05, 0.2))
+        return _generate_mock_companies(keyword, region, num, "google_search")
 
     @staticmethod
     def _parse_response(data: dict, keyword: str, region: str) -> list[CompanyLead]:
@@ -169,25 +277,7 @@ class LinkedInAPI:
     @staticmethod
     def _mock_results(keyword: str, region: str, limit: int) -> list[CompanyLead]:
         time.sleep(random.uniform(0.05, 0.2))
-        companies = [
-            ("Boge Kompressoren", "www.boge.com", "DE", "German compressor manufacturer since 1907. Produces screw, piston, and turbo compressors, plus compressed air treatment equipment. Operates own foundry. Strong export business."),
-            ("Kaeser Kompressoren SE", "www.kaeser.com", "DE", "Family-owned manufacturer of rotary screw compressors, portable units, and blowers. Revenue > €1B. Global distribution network in 100+ countries."),
-            ("FS-Elliott Co., LLC", "www.fs-elliott.com", "US", "Centrifugal compressor OEM for 100–15,000 HP applications. Key supplier to large industrial air separation and petrochemical plants. Engineering-driven culture."),
-            ("Elgi Equipments Ltd", "www.elgi.com", "IN", "One of India's largest compressor manufacturers. Exports to 100+ countries. Known for affordable rotary screw and piston compressors. Publicly listed (NSE: ELGIEQUIP)."),
-            ("CompAir (Gardner Denver)", "www.compair.com", "UK", "Historic UK compressor brand, now part of Ingersoll Rand / Gardner Denver group. Offers oil-lubricated and oil-free rotary screw, plus high-pressure piston compressors."),
-            ("Local Air Conditioner Repair Shop", "www.coolfix-local.com", "US", "HVAC repair and maintenance shop. Does NOT manufacture or purchase compressors at OEM scale. End-user service provider."),
-        ]
-        leads: list[CompanyLead] = []
-        for idx, (name, url, country, desc) in enumerate(companies[:limit]):
-            leads.append(CompanyLead(
-                company_name=name,
-                website_url=url,
-                country=country,
-                raw_description=desc,
-                source="linkedin",
-                source_rank=idx + 1,
-            ))
-        return leads
+        return _generate_mock_companies(keyword, region, limit, "linkedin")
 
 
 class ApolloAPI:
@@ -232,24 +322,7 @@ class ApolloAPI:
     @staticmethod
     def _mock_results(keyword: str, region: str, per_page: int) -> list[CompanyLead]:
         time.sleep(random.uniform(0.05, 0.2))
-        companies = [
-            ("Sullair LLC (Hitachi Group)", "www.sullair.com", "US", "Major rotary screw and portable air compressor OEM. Subsidiary of Hitachi Industrial Equipment Systems. Focus on heavy construction and industrial applications."),
-            ("Ingersoll Rand Inc.", "www.irco.com", "US", "Fortune 500 industrial conglomerate. Compressor division covers centrifugal, rotary, and reciprocating technologies. Acquired Gardner Denver, CompAir, and other brands."),
-            ("Fusheng Co., Ltd.", "www.fusheng.com", "TW", "Taiwanese compressor and golf equipment manufacturer. Strong presence in SE Asia and China. OEM supplier for several global brands in the compressor segment."),
-            ("Hanbell Precise Machinery", "www.hanbell.com", "TW", "Taiwanese screw compressor manufacturer. Listed on TWSE. Supplies refrigeration and air compressor OEMs worldwide. Increasing market share in China."),
-            ("ABC Trading Ltd.", "www.abctrading-hk.com", "HK", "General trading company that sometimes ships used industrial equipment including old compressors. Does NOT manufacture and has no OEM capabilities."),
-        ]
-        leads: list[CompanyLead] = []
-        for idx, (name, url, country, desc) in enumerate(companies[:per_page]):
-            leads.append(CompanyLead(
-                company_name=name,
-                website_url=url,
-                country=country,
-                raw_description=desc,
-                source="apollo",
-                source_rank=idx + 1,
-            ))
-        return leads
+        return _generate_mock_companies(keyword, region, per_page, "apollo")
 
     @staticmethod
     def _parse_response(data: dict) -> list[CompanyLead]:

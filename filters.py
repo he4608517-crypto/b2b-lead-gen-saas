@@ -204,10 +204,14 @@ class LLMClient:
 
         # ---- Lead filtering prompts ----
         negative = [
-            "distributor", "reseller", "repair shop", "end-user",
-            "trading company", "used equipment", "not a manufacturer",
-            "does not manufacture", "purely distribution",
-            "does not manufacture and has no oem",
+            "distributor only",
+            "authorised reseller",
+            "repair shop",
+            "end-user",
+            "trading company",
+            "used equipment dealer",
+            "does not manufacture",
+            "purely distribution",
         ]
         for kw in negative:
             if kw in text:
