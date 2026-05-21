@@ -88,35 +88,68 @@ class FilterCriteria(BaseModel):
 
 class LLMClient:
     """
-    Thin abstraction over Gemini (google-genai) and Claude (Anthropic).
+    Multi-provider LLM abstraction — DeepSeek (primary), Gemini, Claude.
 
     Selects the provider based on the LLM_PROVIDER env var
-    (``gemini`` or ``claude``), defaulting to ``gemini``.
+    (``deepseek``, ``gemini``, or ``claude``), defaulting to ``deepseek``.
     """
 
     def __init__(self, provider: Optional[str] = None) -> None:
-        self.provider: Literal["gemini", "claude"] = (
-            (provider or os.getenv("LLM_PROVIDER", "gemini")).strip().lower()
-        )  # type: ignore[assignment]
-        if self.provider not in ("gemini", "claude"):
+        self.provider = (
+            (provider or os.getenv("LLM_PROVIDER", "deepseek")).strip().lower()
+        )
+        if self.provider not in ("deepseek", "gemini", "claude"):
             raise ValueError(f"Unsupported LLM provider: {self.provider}")
 
         self._mock_mode = not self._has_api_key()
 
         if not self._mock_mode:
-            if self.provider == "gemini":
+            if self.provider == "deepseek":
+                self._init_deepseek()
+            elif self.provider == "gemini":
                 self._init_gemini()
             else:
                 self._init_claude()
 
     def _has_api_key(self) -> bool:
-        if self.provider == "gemini":
-            key = os.getenv("GEMINI_API_KEY", "")
-        else:
-            key = os.getenv("ANTHROPIC_API_KEY", "")
+        key_map = {
+            "deepseek": "DEEPSEEK_API_KEY",
+            "gemini": "GEMINI_API_KEY",
+            "claude": "ANTHROPIC_API_KEY",
+        }
+        key = os.getenv(key_map.get(self.provider, ""), "")
         return bool(key) and "your_" not in key.lower() and "placeholder" not in key.lower()
 
-    # ---- Gemini ----------------------------------------------------------
+    # ---- DeepSeek (primary) -----------------------------------------------
+
+    def _init_deepseek(self) -> None:
+        self._ds_api_key = os.getenv("DEEPSEEK_API_KEY", "")
+        self._ds_model = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+        self._ds_url = "https://api.deepseek.com/v1/chat/completions"
+
+    def _call_deepseek(self, system_prompt: str, user_prompt: str) -> str:
+        import requests as _r
+        resp = _r.post(
+            self._ds_url,
+            headers={
+                "Authorization": f"Bearer {self._ds_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self._ds_model,
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "max_tokens": 2048,
+                "temperature": 0.7,
+            },
+            timeout=90,
+        )
+        resp.raise_for_status()
+        return resp.json()["choices"][0]["message"]["content"].strip()
+
+    # ---- Gemini (legacy) --------------------------------------------------
 
     def _init_gemini(self) -> None:
         try:
@@ -135,7 +168,7 @@ class LLMClient:
         )
         return response.text.strip()
 
-    # ---- Claude -----------------------------------------------------------
+    # ---- Claude (legacy) --------------------------------------------------
 
     def _init_claude(self) -> None:
         try:
@@ -161,6 +194,8 @@ class LLMClient:
     def generate(self, system_prompt: str, user_prompt: str) -> str:
         if self._mock_mode:
             return self._mock_generate(user_prompt)
+        if self.provider == "deepseek":
+            return self._call_deepseek(system_prompt, user_prompt)
         if self.provider == "gemini":
             return self._call_gemini(system_prompt, user_prompt)
         return self._call_claude(system_prompt, user_prompt)

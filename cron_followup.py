@@ -27,7 +27,7 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 
@@ -50,7 +50,7 @@ MAX_FOLLOW_UPS = 3
 
 def find_leads_needing_followup(days: int = FOLLOW_UP_DAYS, max_followups: int = MAX_FOLLOW_UPS):
     """Return (user, lead) pairs for every lead that is due for a follow-up."""
-    cutoff = datetime.utcnow() - timedelta(days=days)
+    cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
     db = SessionLocal()
     try:
         rows = (
@@ -68,10 +68,7 @@ def find_leads_needing_followup(days: int = FOLLOW_UP_DAYS, max_followups: int =
         result = []
         for user, lead in rows:
             lc = lead.last_contacted_at
-            if lc is None or lc < cutoff or lc == datetime.utcnow():
-                # lc == utcnow() means never contacted, or lc is older than cutoff
-                if lc is not None and lc >= cutoff:
-                    continue  # was contacted recently, skip
+            if lc is None or lc < cutoff:
                 result.append((user, lead))
         return result
     finally:
@@ -182,8 +179,9 @@ def process_followups(dry_run: bool = False, days: int = FOLLOW_UP_DAYS, max_fol
             the_lead = db.query(CompanyLead).filter(CompanyLead.id == lead.id).first()
             if the_lead:
                 the_lead.follow_up_count = (the_lead.follow_up_count or 0) + 1
-                the_lead.last_contacted_at = datetime.utcnow()
-                the_lead.updated_at = datetime.utcnow()
+                now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+                the_lead.last_contacted_at = now_utc
+                the_lead.updated_at = now_utc
 
             db.commit()
             logger.info("Logged to outreach_logs + follow_up_count=%d", (lead.follow_up_count or 0) + 1)

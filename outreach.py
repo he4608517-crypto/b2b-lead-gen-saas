@@ -164,21 +164,21 @@ COUNTRY_LANGUAGE = {
 }
 
 MULTILINGUAL_SYSTEM_PROMPT = """\
-You are a B2B cold outreach copywriter for a Chinese supplier/manufacturer of commercial LED lighting and industrial products. You write 1-to-1, highly personalised emails that sound human.
+You are an elite AI sales assistant representing a professional Chinese manufacturer/supplier of commercial LED lighting and industrial products. Write highly persuasive, naturally flowing B2B sales emails/follow-ups that emphasize OEM/ODM capabilities.
 
 ## Rules
-1. Write the ENTIRE email in {language}. Subject, body, greeting, and CTA must all be in {language}.
-2. Reference a SPECIFIC detail from the company description — prove you did your homework.
-3. Mention that we are a Chinese manufacturer/supplier capable of OEM/ODM, competitive pricing, and reliable shipping.
-4. Tone: professional but warm, concise (100-150 words), value-first.
-5. Include a clear, low-friction CTA (e.g., a 15-min discovery call or sample request).
-6. Keep proper business letter formatting with greeting and signature.
+1. Write the ENTIRE email in {language}. Subject, greeting, body, and CTA must all be in {language}. If {language} uses a non-Latin script (Chinese, Japanese, Korean, Arabic, Thai, etc.), write in that script — do NOT romanise.
+2. Reference a SPECIFIC detail from the company description — prove you did your homework about their business.
+3. Naturally weave in that we are a professional Chinese manufacturer with strong OEM/ODM capabilities, competitive factory-direct pricing, ISO-certified production, and reliable global logistics.
+4. Tone: confident, warm, and professional. Concise (120-180 words). Value-first — focus on what WE can do for THEM.
+5. Include a clear, low-friction CTA (e.g., a 15-min video call, sample request, or factory visit invitation).
+6. Keep proper business letter formatting with greeting, body paragraphs, and signature block.
 
 ## Output Format
 Return ONLY a valid JSON object:
 {{
   "subject": "string (in {language})",
-  "body": "string (in {language}, full email body)"
+  "body": "string (in {language}, full email body with greeting and signature)"
 }}
 """
 
@@ -286,10 +286,51 @@ Keep it under 100 words. WhatsApp messages are informal — friendly opening, on
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
-            match = re.search(r"\{[^{}]*\}", cleaned)
-            if match:
-                return json.loads(match.group())
-            return {"subject": "", "body": cleaned}
+            # DeepSeek sometimes returns JSON with literal newlines in string values.
+            # Find the outermost { ... } and extract subject/body with regex as fallback.
+            try:
+                # Match the entire JSON object, handling nested braces carefully
+                depth = 0
+                start = cleaned.find("{")
+                if start == -1:
+                    return {"subject": "", "body": cleaned}
+                for i, ch in enumerate(cleaned[start:], start):
+                    if ch == "{":
+                        depth += 1
+                    elif ch == "}":
+                        depth -= 1
+                        if depth == 0:
+                            obj_str = cleaned[start:i + 1]
+                            # Escape literal newlines inside the JSON string
+                            fixed = re.sub(
+                                r'(?<!\\)"(?:(?<!\\)"(?:[^"\\]|\\.)*"(?<!\\)")*[^"]*',
+                                lambda m: m.group(0),
+                                obj_str,
+                            )
+                            # Simpler: use regex to extract subject and body directly
+                            m_subj = re.search(r'"subject"\s*:\s*"((?:[^"\\]|\\.)*)"', obj_str)
+                            m_body = re.search(r'"body"\s*:\s*"((?:[^"\\]|\\.)*)"', obj_str, re.DOTALL)
+                            subj = m_subj.group(1) if m_subj else ""
+                            body = m_body.group(1) if m_body else cleaned
+                            # Unescape JSON escapes
+                            for esc_seq, real in [('\\n', '\n'), ('\\t', '\t'), ('\\"', '"'), ('\\\\', '\\')]:
+                                subj = subj.replace(esc_seq, real)
+                                body = body.replace(esc_seq, real)
+                            return {"subject": subj, "body": body}
+                    elif ch == '"':
+                        # Skip string contents
+                        j = i + 1
+                        while j < len(cleaned):
+                            if cleaned[j] == '\\':
+                                j += 2
+                            elif cleaned[j] == '"':
+                                break
+                            else:
+                                j += 1
+                        i = j
+                return {"subject": "", "body": cleaned}
+            except Exception:
+                return {"subject": "", "body": cleaned}
 
 
 # ---------------------------------------------------------------------------
