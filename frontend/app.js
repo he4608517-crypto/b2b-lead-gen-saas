@@ -483,10 +483,10 @@ async function loadOutreach() {
 
     const tbody = document.getElementById('outreach-tbody');
     if (!data.logs.length) {
-      tbody.innerHTML = `<tr><td colspan="5" class="py-12 text-center text-gray-400">No outreach logs yet</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-gray-400">No outreach logs yet</td></tr>`;
     } else {
       tbody.innerHTML = data.logs.map(l => `
-        <tr>
+        <tr class="hover:bg-gray-50">
           <td class="py-3 px-4">
             <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${l.channel === 'email' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}">${l.channel}</span>
           </td>
@@ -496,8 +496,29 @@ async function loadOutreach() {
             <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${l.success ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">${l.success ? 'Success' : 'Failed'}</span>
           </td>
           <td class="py-3 px-4 text-sm text-gray-500">${formatDate(l.created_at)}</td>
+          <td class="py-3 px-4">
+            <button class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold toggle-body-btn" data-id="${l.id}">View</button>
+          </td>
+        </tr>
+        <tr id="outreach-body-${l.id}" class="hidden bg-gray-50">
+          <td colspan="6" class="px-6 py-3">
+            <div class="text-xs text-gray-500 mb-1 font-semibold">Email Body:</div>
+            <pre class="text-sm text-gray-700 whitespace-pre-wrap font-sans max-h-40 overflow-y-auto">${esc(l.body || '(no body saved)')}</pre>
+            ${l.error_message ? `<div class="text-xs text-red-600 mt-2">Error: ${esc(l.error_message)}</div>` : ''}
+          </td>
         </tr>
       `).join('');
+
+      // Toggle body visibility
+      tbody.querySelectorAll('.toggle-body-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const bodyRow = document.getElementById(`outreach-body-${btn.dataset.id}`);
+          if (bodyRow) {
+            bodyRow.classList.toggle('hidden');
+            btn.textContent = bodyRow.classList.contains('hidden') ? 'View' : 'Hide';
+          }
+        });
+      });
     }
 
     // Pagination

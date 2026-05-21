@@ -793,6 +793,8 @@ def run_pipeline(body: PipelineRequest, user: User = Depends(current_user)):
                             contact_phone=t.get("contact_phone", ""),
                             outreach_status="sent" if not body.dry_run else "pending",
                             outreach_channel=body.channels,
+                            lead_stage="Contacted" if not body.dry_run else "New",
+                            last_contacted_at=datetime.utcnow() if not body.dry_run else None,
                         )
                         db.add(lead)
                 db.commit()
