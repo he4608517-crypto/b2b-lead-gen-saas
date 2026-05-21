@@ -177,9 +177,31 @@ class UserProfile(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+def _seed_user():
+    """Ensure the default dev account exists after a fresh DB reset."""
+    from database import SessionLocal as _SessionLocal
+    db = _SessionLocal()
+    try:
+        existing = db.query(User).filter(User.email == "he4608517@gmail.com").first()
+        if not existing:
+            db.add(User(
+                email="he4608517@gmail.com",
+                display_name="Cooper",
+                password_hash=hash_password("Zzj20040717@"),
+                company="",
+            ))
+            db.commit()
+            logger.info("Seeded default user: he4608517@gmail.com")
+    except Exception:
+        db.rollback()
+    finally:
+        db.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    _seed_user()
     yield
 
 
@@ -569,7 +591,10 @@ def run_pipeline(body: PipelineRequest, user: User = Depends(current_user)):
                 linkedin_token=os.getenv("LINKEDIN_ACCESS_TOKEN", ""),
                 apollo_key=os.getenv("APOLLO_API_KEY", ""),
             )
-            raw_leads = aggregator.scrape(keyword=body.keyword, region=body.region, max_per_source=body.max_leads)
+            raw_leads = aggregator.scrape(
+                keyword=body.keyword, region=body.region, max_per_source=body.max_leads,
+                progress_cb=lambda p: _pipeline_status.__setitem__(job_id, {**_pipeline_status[job_id], "progress": p}),
+            )
             _pipeline_status[job_id]["progress"] = 30
 
             if not raw_leads:
@@ -610,20 +635,23 @@ def run_pipeline(body: PipelineRequest, user: User = Depends(current_user)):
             total_passed = len(passed)
             enriched = []
             for i, lead in enumerate(passed):
-                domain = lead.get("website_url", "").replace("www.", "").strip()
-                if not domain:
-                    continue
-                target_titles = [lead.get("decision_maker_title", "")]
-                if not target_titles[0]:
-                    target_titles = ["Purchasing Manager", "Sourcing Manager", "Owner", "VP"]
-                contacts = finder.find_contacts(domain=domain, target_titles=target_titles, max_contacts=2)
-                if contacts:
-                    best = contacts[0]
-                    e = dict(lead)
-                    e["contact_name"] = best.full_name
-                    e["contact_email"] = best.email
-                    e["contact_title"] = best.title
-                    enriched.append(e)
+                try:
+                    domain = lead.get("website_url", "").replace("www.", "").strip()
+                    if not domain:
+                        continue
+                    target_titles = [lead.get("decision_maker_title", "")]
+                    if not target_titles[0]:
+                        target_titles = ["Purchasing Manager", "Sourcing Manager", "Owner", "VP"]
+                    contacts = finder.find_contacts(domain=domain, target_titles=target_titles, max_contacts=2)
+                    if contacts:
+                        best = contacts[0]
+                        e = dict(lead)
+                        e["contact_name"] = best.full_name
+                        e["contact_email"] = best.email
+                        e["contact_title"] = best.title
+                        enriched.append(e)
+                except Exception:
+                    logger.warning("Contact discovery failed for %s", lead.get("company_name", "?"))
                 # Stepped progress from 50 → 65 during contact discovery
                 _pipeline_status[job_id]["progress"] = 50 + int((i + 1) / max(total_passed, 1) * 15)
 

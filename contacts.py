@@ -249,7 +249,11 @@ class EmailVerifier:
             answers = dns.resolver.resolve(domain, "MX")
             records = sorted(answers, key=lambda r: r.preference)
             return [str(r.exchange).rstrip(".") for r in records]
-        except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers, dns.exception.Timeout):
+        except (
+            dns.resolver.NoAnswer, dns.resolver.NXDOMAIN, dns.resolver.NoNameservers,
+            dns.exception.Timeout, dns.exception.DNSException, dns.name.LabelTooLong,
+            dns.name.EmptyLabel,
+        ):
             logger.warning("No MX records found for domain %s", domain)
             return []
 
