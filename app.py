@@ -143,6 +143,8 @@ class LeadUpdateRequest(BaseModel):
     contact_phone: str | None = None
     outreach_status: str | None = None
     outreach_channel: str | None = None
+    lead_stage: str | None = None
+    follow_up_count: int | None = None
 
 
 class PipelineRequest(BaseModel):
@@ -362,6 +364,7 @@ def list_leads(
     per_page: int = Query(20, ge=1, le=100),
     search: str = "",
     outreach_status: str = "",
+    lead_stage: str = "",
     is_target: bool | None = None,
     sort_by: str = "created_at",
     sort_dir: str = "desc",
@@ -379,6 +382,8 @@ def list_leads(
             )
         if outreach_status:
             q = q.filter(CompanyLead.outreach_status == outreach_status)
+        if lead_stage:
+            q = q.filter(CompanyLead.lead_stage == lead_stage)
         if is_target is not None:
             q = q.filter(CompanyLead.is_target == is_target)
 
@@ -398,6 +403,26 @@ def list_leads(
             "total": total,
             "total_pages": max(1, (total + per_page - 1) // per_page),
         }
+
+
+@app.get("/api/leads/pipeline-stats")
+def pipeline_stats(user: User = Depends(current_user)):
+    """Return lead counts grouped by CRM stage for the pipeline summary bar."""
+    from sqlalchemy import func
+    with get_db() as db:
+        rows = (
+            db.query(CompanyLead.lead_stage, func.count(CompanyLead.id))
+            .filter(CompanyLead.user_id == user.id)
+            .group_by(CompanyLead.lead_stage)
+            .all()
+        )
+        by_stage = {stage: 0 for stage in CRM_STAGES}
+        for stage, count in rows:
+            key = stage or "New"
+            if key in by_stage:
+                by_stage[key] = count
+        by_stage["total"] = sum(by_stage.values())
+        return by_stage
 
 
 @app.get("/api/leads/{lead_id}")
@@ -452,6 +477,53 @@ def delete_lead(lead_id: int, user: User = Depends(current_user)):
             raise HTTPException(status_code=404, detail="Lead not found")
         db.delete(lead)
         return {"deleted": True}
+
+
+# ---------------------------------------------------------------------------
+# CRM Sales Pipeline
+# ---------------------------------------------------------------------------
+
+CRM_STAGES = ["New", "Contacted", "Replied", "Negotiating", "Won", "Lost"]
+
+
+class StageUpdateRequest(BaseModel):
+    lead_stage: str = Field(min_length=1, max_length=32)
+
+
+@app.put("/api/leads/{lead_id}/stage")
+def update_lead_stage(lead_id: int, body: StageUpdateRequest, user: User = Depends(current_user)):
+    if body.lead_stage not in CRM_STAGES:
+        raise HTTPException(status_code=422, detail=f"Invalid stage. Must be one of: {', '.join(CRM_STAGES)}")
+
+    with get_db() as db:
+        lead = db.query(CompanyLead).filter(
+            CompanyLead.id == lead_id, CompanyLead.user_id == user.id
+        ).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        lead.lead_stage = body.lead_stage
+        if body.lead_stage in ("Contacted", "Replied", "Negotiating"):
+            lead.last_contacted_at = datetime.utcnow()
+        lead.updated_at = datetime.utcnow()
+        db.flush()
+        return _lead_to_dict(lead)
+
+
+@app.post("/api/leads/{lead_id}/follow-up")
+def increment_follow_up(lead_id: int, user: User = Depends(current_user)):
+    with get_db() as db:
+        lead = db.query(CompanyLead).filter(
+            CompanyLead.id == lead_id, CompanyLead.user_id == user.id
+        ).first()
+        if not lead:
+            raise HTTPException(status_code=404, detail="Lead not found")
+
+        lead.follow_up_count = (lead.follow_up_count or 0) + 1
+        lead.last_contacted_at = datetime.utcnow()
+        lead.updated_at = datetime.utcnow()
+        db.flush()
+        return _lead_to_dict(lead)
 
 
 # ---------------------------------------------------------------------------
@@ -792,6 +864,9 @@ def _lead_to_dict(lead: CompanyLead) -> dict:
         "email_status": lead.email_status,
         "outreach_status": lead.outreach_status,
         "outreach_channel": lead.outreach_channel,
+        "lead_stage": lead.lead_stage or "New",
+        "last_contacted_at": lead.last_contacted_at.isoformat() if lead.last_contacted_at else None,
+        "follow_up_count": lead.follow_up_count or 0,
         "created_at": lead.created_at.isoformat() if lead.created_at else "",
         "updated_at": lead.updated_at.isoformat() if lead.updated_at else "",
     }

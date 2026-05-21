@@ -175,25 +175,30 @@
 
       <!-- Leads View -->
       <div id="view-leads" class="view hidden">
-        <div class="flex items-center justify-between mb-6">
-          <h2 class="text-2xl font-bold text-gray-900">Leads</h2>
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-2xl font-bold text-gray-900">Sales Pipeline</h2>
           <button id="btn-add-lead"
             class="px-4 py-2 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors">
             + Add Lead
           </button>
         </div>
 
+        <!-- Pipeline Stage Summary -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-4" id="pipeline-summary"></div>
+
         <!-- Filters -->
         <div class="bg-white rounded-xl border border-gray-200 p-4 mb-4 flex flex-wrap gap-3">
           <input type="text" id="lead-search" placeholder="Search companies, contacts..."
             class="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-          <select id="lead-filter-status"
+          <select id="lead-filter-stage"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-            <option value="">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="sent">Sent</option>
-            <option value="failed">Failed</option>
-            <option value="replied">Replied</option>
+            <option value="">All Stages</option>
+            <option value="New">New</option>
+            <option value="Contacted">Contacted</option>
+            <option value="Replied">Replied</option>
+            <option value="Negotiating">Negotiating</option>
+            <option value="Won">Won</option>
+            <option value="Lost">Lost</option>
           </select>
           <select id="lead-filter-target"
             class="px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
@@ -211,9 +216,9 @@
                 <tr>
                   <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="company_name">Company</th>
                   <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="country">Country</th>
-                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="intent_score">Intent</th>
                   <th class="text-left py-3 px-4 font-semibold text-gray-600">Contact</th>
-                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="outreach_status">Status</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="lead_stage">Stage</th>
+                  <th class="text-left py-3 px-4 font-semibold text-gray-600 cursor-pointer hover:text-gray-900" data-sort="last_contacted_at">Last Contact</th>
                   <th class="text-left py-3 px-4 font-semibold text-gray-600">Actions</th>
                 </tr>
               </thead>
@@ -428,15 +433,21 @@
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
           </div>
           <div>
-            <label class="block text-xs font-medium text-gray-600 mb-1">Outreach Status</label>
-            <select id="edit-outreach-status"
+            <label class="block text-xs font-medium text-gray-600 mb-1">CRM Stage</label>
+            <select id="edit-lead-stage"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
-              <option value="pending">Pending</option>
-              <option value="sent">Sent</option>
-              <option value="failed">Failed</option>
-              <option value="replied">Replied</option>
+              <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Replied">Replied</option>
+              <option value="Negotiating">Negotiating</option>
+              <option value="Won">Won</option>
+              <option value="Lost">Lost</option>
             </select>
           </div>
+        </div>
+        <div class="flex items-center gap-4 text-sm text-gray-600 mb-2">
+          <span>Follow-ups: <strong id="edit-follow-up-count">0</strong></span>
+          <span>Last Contacted: <strong id="edit-last-contacted">—</strong></span>
         </div>
         <input type="hidden" id="edit-lead-id">
         <div class="flex justify-between pt-2">

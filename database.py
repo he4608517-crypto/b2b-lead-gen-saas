@@ -70,8 +70,30 @@ def _migrate_users_smtp_columns():
         pass  # table doesn't exist yet — create_all will handle it
 
 
+def _migrate_leads_pipeline_columns():
+    """Add CRM sales-pipeline columns if the companies_pool table predates them."""
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        existing = {r[1] for r in conn.execute("PRAGMA table_info(companies_pool)")}
+        needed = {
+            "lead_stage": "VARCHAR(32) DEFAULT 'New'",
+            "last_contacted_at": "DATETIME DEFAULT NULL",
+            "follow_up_count": "INTEGER DEFAULT 0",
+        }
+        for col, typedef in needed.items():
+            if col not in existing:
+                conn.execute(f"ALTER TABLE companies_pool ADD COLUMN {col} {typedef}")
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
 def init_db():
     """Create all tables if they do not exist, then run migrations."""
     from models import Base
     Base.metadata.create_all(bind=engine)
     _migrate_users_smtp_columns()
+    _migrate_leads_pipeline_columns()

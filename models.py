@@ -93,6 +93,11 @@ class CompanyLead(Base):
     outreach_status = Column(String(32), default="pending")  # pending / sent / failed / replied
     outreach_channel = Column(String(32), default="")
 
+    # CRM sales pipeline
+    lead_stage = Column(String(32), default="New")  # New / Contacted / Replied / Negotiating / Won / Lost
+    last_contacted_at = Column(DateTime, default=None)
+    follow_up_count = Column(Integer, default=0)
+
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 

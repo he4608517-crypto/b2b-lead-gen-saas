@@ -29,9 +29,10 @@ const state = {
     totalPages: 1,
     search: '',
     outreachStatus: '',
+    leadStage: '',
     isTarget: '',
-    sortBy: 'created_at',
-    sortDir: 'desc',
+    sortBy: 'lead_stage',
+    sortDir: 'asc',
   },
   outreach: {
     page: 1,
@@ -231,11 +232,13 @@ async function loadLeads() {
       sort_dir: state.leads.sortDir,
     });
     if (state.leads.isTarget !== '') params.set('is_target', state.leads.isTarget);
+    if (state.leads.leadStage) params.set('lead_stage', state.leads.leadStage);
 
     const data = await api(`/api/leads?${params}`);
     state.leads.total = data.total;
     state.leads.totalPages = data.total_pages;
 
+    renderPipelineSummary(data.leads);
     renderLeadsTable(data.leads);
     renderLeadsPagination();
   } catch (err) {
@@ -247,42 +250,48 @@ function renderLeadsTable(leads) {
   const tbody = document.getElementById('leads-tbody');
 
   if (!leads.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-gray-400">No leads found</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="py-12 text-center text-gray-400">No leads in this stage</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = leads.map(l => `
-    <tr class="hover:bg-gray-50 cursor-pointer" data-id="${l.id}">
-      <td class="py-3 px-4">
+  tbody.innerHTML = leads.map(l => {
+    const stage = l.lead_stage || 'New';
+    const lastContact = l.last_contacted_at ? formatDate(l.last_contacted_at) : '—';
+    return `
+    <tr class="hover:bg-gray-50" data-id="${l.id}">
+      <td class="py-3 px-4 cursor-pointer" onclick="openLeadModal(${l.id})">
         <p class="font-medium text-gray-900">${esc(l.company_name)}</p>
-        <p class="text-xs text-gray-500">${esc(l.website_url)}</p>
+        <p class="text-xs text-gray-500 truncate max-w-[200px]">${esc(l.website_url)}</p>
       </td>
-      <td class="py-3 px-4 text-gray-700">${esc(l.country)}</td>
-      <td class="py-3 px-4">
-        ${l.is_target
-          ? `<span class="inline-flex items-center gap-1 text-sm"><span class="w-2 h-2 rounded-full ${l.intent_score >= 70 ? 'bg-green-500' : l.intent_score >= 40 ? 'bg-amber-500' : 'bg-red-500'}"></span>${l.intent_score}</span>`
-          : `<span class="text-xs text-gray-400">N/A</span>`
-        }
+      <td class="py-3 px-4 text-gray-700 cursor-pointer" onclick="openLeadModal(${l.id})">${esc(l.country)}</td>
+      <td class="py-3 px-4 cursor-pointer" onclick="openLeadModal(${l.id})">
+        <p class="text-gray-900 text-sm">${esc(l.contact_name) || '—'}</p>
+        <p class="text-xs text-gray-500">${esc(l.contact_email) || '—'}</p>
       </td>
-      <td class="py-3 px-4">
-        <p class="text-gray-900">${esc(l.contact_name)}</p>
-        <p class="text-xs text-gray-500">${esc(l.contact_email)}</p>
+      <td class="py-3 px-4" onclick="event.stopPropagation()">
+        <select class="stage-select text-xs font-semibold px-2 py-1 rounded-full border outline-none cursor-pointer ${STAGE_COLORS[stage] || ''}" data-id="${l.id}" style="min-width:110px">
+          ${['New','Contacted','Replied','Negotiating','Won','Lost'].map(s => `<option value="${s}" ${s === stage ? 'selected' : ''}>${s}</option>`).join('')}
+        </select>
+        ${l.follow_up_count > 0 ? `<span class="ml-1 text-xs text-gray-400" title="Follow-ups">🔔${l.follow_up_count}</span>` : ''}
       </td>
+      <td class="py-3 px-4 text-sm text-gray-500 cursor-pointer" onclick="openLeadModal(${l.id})">${lastContact}</td>
       <td class="py-3 px-4">
-        <span class="inline-flex px-2 py-0.5 text-xs font-medium rounded-full ${statusBadge(l.outreach_status)}">${l.outreach_status}</span>
-      </td>
-      <td class="py-3 px-4">
-        <button class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold btn-edit-lead" data-id="${l.id}">Edit</button>
+        <button class="text-indigo-600 hover:text-indigo-800 text-xs font-semibold btn-edit-lead" data-id="${l.id}" onclick="event.stopPropagation()">Edit</button>
       </td>
     </tr>
-  `).join('');
+  `}).join('');
 
-  // Click handlers
+  // Edit button handlers
   tbody.querySelectorAll('.btn-edit-lead').forEach(btn => {
     btn.addEventListener('click', e => { e.stopPropagation(); openLeadModal(btn.dataset.id); });
   });
-  tbody.querySelectorAll('tr').forEach(row => {
-    row.addEventListener('click', () => openLeadModal(row.dataset.id));
+
+  // Inline stage change handlers
+  tbody.querySelectorAll('.stage-select').forEach(sel => {
+    sel.addEventListener('change', e => {
+      e.stopPropagation();
+      changeStage(sel.dataset.id, sel.value);
+    });
   });
 }
 
@@ -319,6 +328,47 @@ function statusBadge(status) {
   return map[status] || 'bg-gray-100 text-gray-700';
 }
 
+// CRM Pipeline stage colors
+const STAGE_COLORS = {
+  'New': 'bg-gray-100 text-gray-700 border-gray-300',
+  'Contacted': 'bg-blue-100 text-blue-700 border-blue-300',
+  'Replied': 'bg-amber-100 text-amber-700 border-amber-300',
+  'Negotiating': 'bg-purple-100 text-purple-700 border-purple-300',
+  'Won': 'bg-green-100 text-green-700 border-green-300',
+  'Lost': 'bg-red-100 text-red-700 border-red-300',
+};
+
+async function renderPipelineSummary(leads) {
+  try {
+    const stats = await api('/api/leads/pipeline-stats');
+    const stages = ['New', 'Contacted', 'Replied', 'Negotiating', 'Won', 'Lost'];
+    const emoji = { 'New': '📥', 'Contacted': '📤', 'Replied': '💬', 'Negotiating': '🤝', 'Won': '✅', 'Lost': '❌' };
+    document.getElementById('pipeline-summary').innerHTML = stages.map(s => `
+      <div class="bg-white rounded-xl border border-gray-200 px-3 py-2.5 text-center cursor-pointer hover:ring-2 hover:ring-indigo-300 transition-all ${state.leads.leadStage === s ? 'ring-2 ring-indigo-500' : ''}" onclick="document.getElementById('lead-filter-stage').value='${s}'; state.leads.leadStage='${s}'; state.leads.page=1; loadLeads();">
+        <div class="text-lg">${emoji[s]}</div>
+        <div class="text-xs font-semibold text-gray-600">${s}</div>
+        <div class="text-lg font-bold ${STAGE_COLORS[s].split(' ')[0].replace('bg-','text-').replace('-100','-600')}">${stats[s] || 0}</div>
+      </div>
+    `).join('');
+  } catch {}
+}
+
+async function changeStage(leadId, newStage) {
+  try {
+    await api(`/api/leads/${leadId}/stage`, {
+      method: 'PUT',
+      body: JSON.stringify({ lead_stage: newStage }),
+    });
+    if (newStage in {'Contacted':1,'Replied':1,'Negotiating':1}) {
+      await api(`/api/leads/${leadId}/follow-up`, { method: 'POST' });
+    }
+    loadLeads();
+    toast(`Stage updated to ${newStage}`, 'success');
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+}
+
 // Lead modal
 async function openLeadModal(leadId) {
   try {
@@ -335,7 +385,9 @@ async function openLeadModal(leadId) {
     document.getElementById('edit-contact-phone').value = lead.contact_phone;
     document.getElementById('edit-is-target').value = String(lead.is_target);
     document.getElementById('edit-intent-score').value = lead.intent_score;
-    document.getElementById('edit-outreach-status').value = lead.outreach_status;
+    document.getElementById('edit-lead-stage').value = lead.lead_stage || 'New';
+    document.getElementById('edit-follow-up-count').textContent = lead.follow_up_count || 0;
+    document.getElementById('edit-last-contacted').textContent = lead.last_contacted_at ? formatDate(lead.last_contacted_at) : '—';
     document.getElementById('lead-modal').classList.add('flex');
     document.getElementById('lead-modal').classList.remove('hidden');
   } catch (err) {
@@ -365,7 +417,7 @@ async function saveLead(e) {
         contact_email: document.getElementById('edit-contact-email').value,
         contact_title: document.getElementById('edit-contact-title').value,
         contact_phone: document.getElementById('edit-contact-phone').value,
-        outreach_status: document.getElementById('edit-outreach-status').value,
+        lead_stage: document.getElementById('edit-lead-stage').value,
       }),
     });
     closeLeadModal();
@@ -817,8 +869,8 @@ document.getElementById('lead-search').addEventListener('input', (e) => {
   }, 300);
 });
 
-document.getElementById('lead-filter-status').addEventListener('change', (e) => {
-  state.leads.outreachStatus = e.target.value;
+document.getElementById('lead-filter-stage').addEventListener('change', (e) => {
+  state.leads.leadStage = e.target.value;
   state.leads.page = 1;
   loadLeads();
 });
